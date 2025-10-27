@@ -54,3 +54,5 @@ while v == 1:
     respuesta = input("¿Quieres realizar una nueva operación desde cero? (Si/No): ")
     if respuesta.lower() != "si":
         v = 0
+
+        # Comentario añadido para prueba de commit
