@@ -12,12 +12,7 @@
 2. [Requisitos del Sistema](#2-requisitos-del-sistema)
 3. [Arquitectura de Software](#3-arquitectura-de-software)
     * [Estructura de Datos](#31-estructura-de-datos)
-    * [Diseño Modular](#32-diseño-modular)
-4. [Documentación Técnica de Funciones (API)](#4-documentación-técnica-de-funciones-api)
-5. [Estrategia de Manejo de Errores y Robustez](#5-estrategia-de-manejo-de-errores-y-robustez)
-6. [Persistencia y Almacenamiento](#6-persistencia-y-almacenamiento)
-7. [Guía de Usuario (Workflow)](#7-guía-de-usuario-workflow)
-8. [Hoja de Ruta (Próximos Pasos)](#8-hoja-de-ruta-próximos-pasos)
+
 
 ---
 
