@@ -1,4 +1,3 @@
-# PROYECTO: Gestor de Notas - Entrega Final (POO + Herencia)
 import json
 import logging
 
@@ -11,8 +10,7 @@ logging.basicConfig(filename='registro.log', level=logging.INFO)
 
 class Persona:
     """
-    Clase Padre (Base). 
-    Representa a cualquier persona con un nombre.
+    Representa la identidad básica.
     """
     def __init__(self, nombre):
         self.nombre = nombre
@@ -22,13 +20,11 @@ class Persona:
 
 class Alumno(Persona):
     """
-    Clase Hija (Derivada).
-    Hereda de Persona y añade la gestión de notas.
+    Clase Padre (Elemento Principal).
+    Representa un alumno estándar.
     """
     def __init__(self, nombre, notas=None):
-        # Llamamos al constructor del padre (Persona) para asignar el nombre
         super().__init__(nombre)
-        
         # Asignamos las notas (si no hay, lista vacía)
         if notas is None:
             self.notas = []
@@ -36,65 +32,84 @@ class Alumno(Persona):
             self.notas = notas
 
     def agregar_nota(self, nota):
-        """Método encapsulado para añadir notas."""
         self.notas.append(nota)
 
     def calcular_media(self):
-        """Método encapsulado para calcular la propia media."""
         if len(self.notas) > 0:
             return sum(self.notas) / len(self.notas)
         return 0.0
 
     def to_dict(self):
-        """
-        Convierte el Objeto a Diccionario para poder guardarlo en JSON.
-        (Los objetos no se guardan solos en JSON).
-        """
+        """Convierte a diccionario base."""
         return {
+            "tipo": "Normal", # Ayuda a identificarlo en el JSON (opcional pero útil)
             "nombre": self.nombre,
             "notas": self.notas
         }
 
     def __str__(self):
-        """Representación en texto del alumno."""
-        return f"{self.nombre} - Notas: {self.notas}"
+        return f"[Alumno] {self.nombre} - Notas: {self.notas}"
+
+class AlumnoErasmus(Alumno):
+    """
+    Clase Hija (Subclase Especial).
+    Hereda de Alumno y añade el país de destino.
+    """
+    def __init__(self, nombre, notas=None, pais="Desconocido"):
+        # Llamamos al constructor de Alumno para gestionar nombre y notas
+        super().__init__(nombre, notas)
+        self.pais = pais
+
+    def to_dict(self):
+        
+        #Sobreescribimos to_dict para añadir el campo extra.
+        
+        data = super().to_dict()
+        data["tipo"] = "Erasmus"
+        data["pais"] = self.pais
+        return data
+
+    def __str__(self):
+        # Representación diferente para distinguir que es Erasmus
+        return f"[ERASMUS - {self.pais}] {self.nombre} - Notas: {self.notas}"
 
 # ==========================================
 # 2. CLASE DE CONTROL (GESTOR)
 # ==========================================
 
 class GestorNotas:
-    """
-    Clase que maneja toda la lógica del programa (CRUD).
-    Sustituye a las funciones sueltas y al diccionario global.
-    """
     def __init__(self):
         self.archivo_json = "notas_clase.json"
-        self.mis_alumnos = {} # Diccionario de OBJETOS Alumno
-        self.cargar_datos()   # Carga automática al iniciar
+        self.mis_alumnos = {}
+        self.cargar_datos()   
 
     def cargar_datos(self):
         try:
             with open(self.archivo_json, "r", encoding='utf-8') as archivo:
                 datos_cargados = json.load(archivo)
                 
-                # RECONSTRUCCIÓN: Convertimos el JSON (diccionarios) a Objetos Alumno
                 self.mis_alumnos = {}
                 for nombre_clave, datos in datos_cargados.items():
-                    # Creamos el objeto Alumno usando los datos leídos
-                    alumno_obj = Alumno(datos["nombre"], datos["notas"])
+                    # --- LÓGICA DE DETECCIÓN DE TIPO ---
+                    if datos.get("tipo") == "Erasmus" or "pais" in datos:
+                        # Creamos objeto Erasmus
+                        pais = datos.get("pais", "Desconocido")
+                        alumno_obj = AlumnoErasmus(datos["nombre"], datos["notas"], pais)
+                    else:
+                        # Creamos objeto Alumno normal
+                        alumno_obj = Alumno(datos["nombre"], datos["notas"])
+                    
                     self.mis_alumnos[nombre_clave] = alumno_obj
                     
             print(">> Datos cargados correctamente.")
             logging.info("Inicio: Datos cargados desde JSON.")
+
         except (FileNotFoundError, json.JSONDecodeError):
             print(">> Base de datos nueva/vacía.")
-            logging.info("Inicio: Base de datos nueva.")
             self.mis_alumnos = {}
 
     def guardar_datos(self):
         try:
-            # SERIALIZACIÓN: Convertimos los objetos Alumno a diccionarios simples
             datos_para_guardar = {}
             for nombre, obj_alumno in self.mis_alumnos.items():
                 datos_para_guardar[nombre] = obj_alumno.to_dict()
@@ -105,7 +120,6 @@ class GestorNotas:
             logging.info("Guardado exitoso.")
         except Exception as e:
             print(f"Error al guardar: {e}")
-            logging.error(f"Fallo al guardar: {e}")
 
     def insertar_alumno(self):
         nombre = input("Nombre del nuevo alumno: ").strip()
@@ -113,14 +127,26 @@ class GestorNotas:
             print("El nombre no puede estar vacío.")
             return
 
-        if nombre not in self.mis_alumnos:
-            # INSTANCIAMOS LA CLASE ALUMNO
-            nuevo_alumno = Alumno(nombre)
-            self.mis_alumnos[nombre] = nuevo_alumno
-            print(f"Alumno '{nombre}' registrado.")
-            logging.info(f"Alumno creado: {nombre}")
-        else:
+        if nombre in self.mis_alumnos:
             print("Ese alumno ya existe.")
+            return
+
+        # --- ADAPTACIÓN DEL MENÚ ---
+        # Preguntamos si es un caso especial
+        es_erasmus = input("¿Es un alumno de beca Erasmus? (s/n): ").strip().lower()
+
+        if es_erasmus == 's':
+            pais = input("Introduce el país de destino: ").strip()
+            # Instanciamos la SUBCLASE
+            nuevo_alumno = AlumnoErasmus(nombre, pais=pais)
+            logging.info(f"Alumno Erasmus creado: {nombre} ({pais})")
+        else:
+            # Instanciamos la CLASE BASE
+            nuevo_alumno = Alumno(nombre)
+            logging.info(f"Alumno normal creado: {nombre}")
+
+        self.mis_alumnos[nombre] = nuevo_alumno
+        print(f"Alumno registrado correctamente.")
 
     def modificar_notas(self):
         nombre = input("Nombre del alumno: ").strip()
@@ -128,10 +154,8 @@ class GestorNotas:
             try:
                 nota = float(input(f"Introduce nota para {nombre}: "))
                 if 0 <= nota <= 10:
-                    # Usamos el MÉTODO del objeto
                     self.mis_alumnos[nombre].agregar_nota(nota)
                     print("Nota guardada.")
-                    logging.info(f"Nota {nota} añadida a {nombre}.")
                 else:
                     print("Nota debe ser entre 0 y 10.")
             except ValueError:
@@ -142,18 +166,14 @@ class GestorNotas:
     def buscar_alumno(self):
         nombre = input("¿A quién buscas?: ").strip()
         if nombre in self.mis_alumnos:
-            # Recuperamos el objeto
             alumno = self.mis_alumnos[nombre]
-            print(f"--- Ficha de {alumno.nombre} ---")
-            print(f"Notas: {alumno.notas}")
             
-            # Usamos el método de la clase para calcular la media
+            # El print usará el __str__ correspondiente (Normal o Erasmus) automáticamente
+            print(f"--- Ficha ---")
+            print(alumno) 
+            
             media = alumno.calcular_media()
-            if media > 0 or alumno.notas:
-                print(f"Media: {media:.2f}")
-            else:
-                print("Media: Sin notas")
-            logging.info(f"Consultado: {nombre}")
+            print(f"Media actual: {media:.2f}")
         else:
             print("Alumno no encontrado.")
 
@@ -162,7 +182,6 @@ class GestorNotas:
         if nombre in self.mis_alumnos:
             del self.mis_alumnos[nombre]
             print("Eliminado.")
-            logging.info(f"Eliminado: {nombre}")
         else:
             print("No existe.")
 
@@ -171,16 +190,15 @@ class GestorNotas:
             print("No hay alumnos.")
             return
         
-        print("--- CLASE COMPLETA ---")
+        print("\n--- LISTADO DE CLASE ---")
         for alumno in self.mis_alumnos.values():
             media = alumno.calcular_media()
-            nota_str = f"{media:.2f}" if alumno.notas else "Sin notas"
-            print(f"{alumno.nombre} - Notas: {alumno.notas} - Media: {nota_str}")
+            print(f"{alumno} | Media: {media:.2f}")
+        print("------------------------")
 
     def iniciar(self):
-        """Bucle principal del menú"""
         while True:
-            print("\n1. Insertar | 2. Nota | 3. Buscar | 4. Borrar | 5. Ver Todo | 6. Salir")
+            print("\n1. Insertar Alumno | 2. Añadir Nota | 3. Buscar | 4. Borrar | 5. Ver Todo | 6. Salir")
             opcion = input("Opción: ")
             
             if opcion == "1": self.insertar_alumno()
@@ -196,11 +214,8 @@ class GestorNotas:
                 print("Opción no válida")
 
 # ==========================================
-# 3. EJECUCIÓN DEL PROGRAMA
+# 3. EJECUCIÓN
 # ==========================================
-
-# Todo el programa se resume en estas dos líneas:
-# Creamos el gestor y lo iniciamos.
 if __name__ == "__main__":
     app = GestorNotas()
     app.iniciar()
